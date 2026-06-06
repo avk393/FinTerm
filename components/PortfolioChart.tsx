@@ -1,31 +1,37 @@
 "use client";
 
 import { useMemo, useRef, useState, useCallback } from "react";
-import type { PortfolioHistory } from "@/types/portfolio";
+import type { PortfolioHistory, TimeRange } from "@/types/portfolio";
 
 interface PortfolioChartProps {
   history: PortfolioHistory;
   /** Reports the hovered point index (or null when not scrubbing). */
   onScrub: (index: number | null) => void;
-  /**
-   * Optional tone override. When provided, the line color follows this
-   * instead of the chart's own first-vs-last comparison, keeping the
-   * chart, summary, and range tabs in agreement.
-   */
   up?: boolean;
   height?: number;
 }
 
 const GREEN = "#00c805";
 const RED = "#ff5000";
+const LABEL_COUNT = 5;
 
-/**
- * Robinhood-style equity chart:
- *  - line colored green/red by whole-period gain/loss
- *  - dashed horizontal baseline at the period's starting value
- *  - pointer scrubbing that emits the hovered index upward
- *  - portion of the line after the cursor dims while scrubbing
- */
+function formatTimeLabel(t: number, range: TimeRange): string {
+  const d = new Date(t);
+  switch (range) {
+    case "1D":
+      return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    case "1W":
+      return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+    case "1M":
+    case "3M":
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    case "YTD":
+    case "1Y":
+    case "ALL":
+      return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  }
+}
+
 export default function PortfolioChart({
   history,
   onScrub,
@@ -34,7 +40,7 @@ export default function PortfolioChart({
 }: PortfolioChartProps) {
   const ref = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
-  const W = 1000; // viewBox width; SVG scales to container
+  const W = 1000;
   const H = height;
   const padY = 24;
 
@@ -58,12 +64,24 @@ export default function PortfolioChart({
     };
   }, [history, H, up]);
 
+  // Evenly-spaced label indices as percentages of the viewBox width.
+  const labels = useMemo(() => {
+    if (points.length < 2) return [];
+    return Array.from({ length: LABEL_COUNT }, (_, i) => {
+      const idx = Math.round((i / (LABEL_COUNT - 1)) * (points.length - 1));
+      return {
+        idx,
+        pct: (geoX(idx) / W) * 100,
+        text: formatTimeLabel(points[idx].t, history.range),
+      };
+    });
+  }, [points, geoX, history.range]);
+
   const linePath = useMemo(
     () => points.map((p, i) => `${i === 0 ? "M" : "L"}${geoX(i)},${geoY(p.v)}`).join(" "),
     [points, geoX, geoY]
   );
 
-  // Split the path at the cursor so the trailing part can be dimmed.
   const headPath = useMemo(() => {
     if (hover == null) return linePath;
     return points
@@ -94,69 +112,92 @@ export default function PortfolioChart({
   const cursorY = hover != null ? geoY(points[hover].v) : 0;
 
   return (
-    <svg
-      ref={ref}
-      viewBox={`0 0 ${W} ${H}`}
-      width="100%"
-      height={H}
-      preserveAspectRatio="none"
-      className="touch-none select-none"
-      onMouseMove={(e) => handleMove(e.clientX)}
-      onMouseLeave={clear}
-      onTouchStart={(e) => handleMove(e.touches[0].clientX)}
-      onTouchMove={(e) => handleMove(e.touches[0].clientX)}
-      onTouchEnd={clear}
-    >
-      {/* Dashed baseline at the period's opening value */}
-      <line
-        x1={0}
-        x2={W}
-        y1={baseY}
-        y2={baseY}
-        stroke="#3a3a3a"
-        strokeWidth={1}
-        strokeDasharray="2 4"
-      />
+    <div>
+      <svg
+        ref={ref}
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        height={H}
+        preserveAspectRatio="none"
+        className="touch-none select-none"
+        onMouseMove={(e) => handleMove(e.clientX)}
+        onMouseLeave={clear}
+        onTouchStart={(e) => handleMove(e.touches[0].clientX)}
+        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+        onTouchEnd={clear}
+      >
+        {/* Dashed baseline */}
+        <line
+          x1={0}
+          x2={W}
+          y1={baseY}
+          y2={baseY}
+          stroke="#3a3a3a"
+          strokeWidth={1}
+          strokeDasharray="2 4"
+        />
 
-      {/* Full line dims to grey when scrubbing... */}
-      <path
-        d={linePath}
-        fill="none"
-        stroke={hover != null ? "#4a4a4a" : color}
-        strokeWidth={2}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      {/* ...and the segment up to the cursor stays colored */}
-      {hover != null && (
+        {/* Full line dims to grey when scrubbing... */}
         <path
-          d={headPath}
+          d={linePath}
           fill="none"
-          stroke={color}
+          stroke={hover != null ? "#4a4a4a" : color}
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
         />
-      )}
-
-      {/* Crosshair + dot */}
-      {hover != null && (
-        <>
-          <line
-            x1={cursorX}
-            x2={cursorX}
-            y1={0}
-            y2={H}
-            stroke="#5a5a5a"
-            strokeWidth={1}
+        {/* ...segment up to cursor stays colored */}
+        {hover != null && (
+          <path
+            d={headPath}
+            fill="none"
+            stroke={color}
+            strokeWidth={2}
+            strokeLinejoin="round"
+            strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
-          <circle cx={cursorX} cy={cursorY} r={5} fill={color} vectorEffect="non-scaling-stroke" />
-          <circle cx={cursorX} cy={cursorY} r={5} fill="none" stroke="#000" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-        </>
-      )}
-    </svg>
+        )}
+
+        {/* Crosshair + dot */}
+        {hover != null && (
+          <>
+            <line
+              x1={cursorX}
+              x2={cursorX}
+              y1={0}
+              y2={H}
+              stroke="#5a5a5a"
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle cx={cursorX} cy={cursorY} r={5} fill={color} vectorEffect="non-scaling-stroke" />
+            <circle cx={cursorX} cy={cursorY} r={5} fill="none" stroke="#000" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+          </>
+        )}
+      </svg>
+
+      {/* Time labels rendered as HTML to avoid SVG text distortion */}
+      <div className="relative h-5 mt-1 select-none">
+        {labels.map(({ idx, pct, text }, i) => (
+          <span
+            key={idx}
+            className="absolute text-[11px] text-rh-muted whitespace-nowrap"
+            style={{
+              left: `${pct}%`,
+              transform:
+                i === 0
+                  ? "none"
+                  : i === labels.length - 1
+                  ? "translateX(-100%)"
+                  : "translateX(-50%)",
+            }}
+          >
+            {text}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }

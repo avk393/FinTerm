@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { Position } from "@/types/portfolio";
 import { formatCurrency, formatPercent, formatQty } from "@/lib/format";
 
@@ -28,9 +29,10 @@ export default function PositionsList({ positions, loading }: Props) {
         const up = p.unrealizedPlpc >= 0;
         const color = up ? GREEN : RED;
         return (
-          <div
+          <Link
             key={p.symbol}
-            className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-rh-border py-4"
+            href={`/stocks/${p.symbol}`}
+            className="grid grid-cols-[1fr_auto] items-center gap-4 border-b border-rh-border py-4 hover:bg-rh-elevated transition-colors"
           >
             <div>
               <div className="font-bold">{p.symbol}</div>
@@ -45,7 +47,7 @@ export default function PositionsList({ positions, loading }: Props) {
                 {formatPercent(p.unrealizedPlpc, { sign: true })})
               </div>
             </div>
-          </div>
+          </Link>
         );
       })}
 

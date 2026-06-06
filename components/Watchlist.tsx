@@ -1,52 +1,58 @@
 "use client";
 
-import type { Watchlist as WatchlistType } from "@/types/portfolio";
-import { formatCurrency, formatPercent } from "@/lib/format";
-import Sparkline from "./Sparkline";
-
-const GREEN = "#00c805";
-const RED = "#ff5000";
+import type { NewsArticle } from "@/types/portfolio";
 
 interface Props {
-  watchlist: WatchlistType | null;
+  news: NewsArticle[] | null;
   loading?: boolean;
 }
 
-export default function Watchlist({ watchlist, loading }: Props) {
+export default function Watchlist({ news, loading }: Props) {
   return (
     <aside className="self-start rounded-xl border border-rh-border bg-rh-bg">
       <div className="flex items-center justify-between px-4 py-4">
-        <h2 className="text-base font-bold">Watch List</h2>
+        <h2 className="text-base font-bold">Portfolio News</h2>
       </div>
 
       <div className="rh-scroll max-h-[640px] overflow-y-auto">
         {loading && (
           <div className="space-y-3 px-4 py-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded bg-rh-elevated" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 animate-pulse rounded bg-rh-elevated" />
+                <div className="h-3 w-3/4 animate-pulse rounded bg-rh-elevated" />
+              </div>
             ))}
           </div>
         )}
 
-        {watchlist?.items.map((item) => {
-          const up = item.changePct >= 0;
-          const color = up ? GREEN : RED;
-          return (
-            <button
-              key={item.symbol}
-              className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-4 border-t border-rh-border px-4 py-3 text-left transition-colors hover:bg-rh-elevated"
-            >
-              <span className="font-bold">{item.symbol}</span>
-              <Sparkline data={item.spark} color={color} />
-              <span className="text-right tnum">
-                <span className="block font-medium">{formatCurrency(item.price)}</span>
-                <span className="block text-sm" style={{ color }}>
-                  {formatPercent(item.changePct, { sign: true })}
+        {!loading && news?.length === 0 && (
+          <p className="px-4 py-6 text-sm text-rh-muted">No recent news found.</p>
+        )}
+
+        {news?.map((article, i) => (
+          <a
+            key={i}
+            href={article.url || undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block border-t border-rh-border px-4 py-3 transition-colors hover:bg-rh-elevated"
+          >
+            <div className="mb-1 flex items-center gap-2">
+              {article.symbols.map((sym) => (
+                <span
+                  key={sym}
+                  className="rounded bg-rh-elevated px-1.5 py-0.5 text-[11px] font-bold text-rh-green"
+                >
+                  {sym}
                 </span>
-              </span>
-            </button>
-          );
-        })}
+              ))}
+              <span className="text-[11px] text-rh-muted">{article.source}</span>
+            </div>
+            <p className="text-sm font-semibold leading-snug">{article.title}</p>
+            <p className="mt-1 text-xs leading-relaxed text-rh-muted">{article.summary}</p>
+          </a>
+        ))}
       </div>
     </aside>
   );

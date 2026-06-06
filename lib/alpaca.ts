@@ -125,6 +125,45 @@ export async function getPortfolioHistory(range: TimeRange): Promise<PortfolioHi
   };
 }
 
+// ---- Stock bars (historical price chart) ---------------------------------
+
+function stockBarsParams(range: TimeRange): { timeframe: string; start: string } {
+  const now = Date.now();
+  const daysAgo = (d: number) => new Date(now - d * 86_400_000).toISOString();
+  switch (range) {
+    case "1D":  return { timeframe: "5Min",  start: daysAgo(1) };
+    case "1W":  return { timeframe: "1Hour", start: daysAgo(7) };
+    case "1M":  return { timeframe: "1Day",  start: daysAgo(30) };
+    case "3M":  return { timeframe: "1Day",  start: daysAgo(90) };
+    case "YTD": return { timeframe: "1Day",  start: `${new Date().getFullYear()}-01-01` };
+    case "1Y":  return { timeframe: "1Day",  start: daysAgo(365) };
+    case "ALL": return { timeframe: "1Week", start: daysAgo(365 * 10) };
+  }
+}
+
+export async function getStockBars(symbol: string, range: TimeRange): Promise<PortfolioHistory> {
+  if (isMock()) {
+    const n = 80;
+    let v = 150 + Math.random() * 100;
+    const points = Array.from({ length: n }, (_, i) => {
+      v += (Math.random() - 0.48) * 3;
+      return { t: Date.now() - (n - i) * 3600_000, v: Math.max(1, v) };
+    });
+    return { range, points, baseValue: points[0].v };
+  }
+
+  const { timeframe, start } = stockBarsParams(range);
+  const data = await get<{ bars: Record<string, { t: string; c: number }[]> }>(
+    DATA,
+    "/v2/stocks/bars",
+    { symbols: symbol, timeframe, start, adjustment: "split", limit: "10000" }
+  );
+
+  const bars = data.bars[symbol] ?? [];
+  const points = bars.map((b) => ({ t: new Date(b.t).getTime(), v: b.c }));
+  return { range, points, baseValue: points[0]?.v ?? 0 };
+}
+
 // ---- Watchlist (market data) ---------------------------------------------
 
 export async function getWatchlist(): Promise<Watchlist> {

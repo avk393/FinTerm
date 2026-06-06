@@ -56,6 +56,18 @@ export interface Watchlist {
   items: WatchlistItem[];
 }
 
+export interface NewsArticle {
+  title: string;
+  /** 1-2 sentence summary. */
+  summary: string;
+  url: string;
+  source: string;
+  /** ISO date string. */
+  publishedAt?: string;
+  /** Portfolio symbol(s) this article relates to. */
+  symbols: string[];
+}
+
 /** Derived value shown in the summary, recomputed as the chart is scrubbed. */
 export interface SummaryStats {
   value: number;

@@ -14,7 +14,7 @@ import type { SummaryStats, TimeRange } from "@/types/portfolio";
 export default function Page() {
   const [range, setRange] = useState<TimeRange>("1D");
   const [scrub, setScrub] = useState<number | null>(null);
-  const { account, positions, watchlist, history, loadingHistory, error } =
+  const { account, positions, news, loadingNews, history, loadingHistory, error } =
     usePortfolio(range);
 
   // Compute the value + change shown in the summary. When the user is
@@ -98,8 +98,8 @@ export default function Page() {
           )}
         </div>
 
-        {/* Right: watchlist */}
-        <Watchlist watchlist={watchlist} loading={!watchlist} />
+        {/* Right: news */}
+        <Watchlist news={news} loading={loadingNews} />
       </main>
     </div>
   );
