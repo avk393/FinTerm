@@ -68,17 +68,17 @@ export default function StockDetail({ symbol }: Props) {
             </div>
           </section>
 
-          {/* News */}
+          {/* Macro Indicators */}
           <section className="rounded-xl border border-rh-border bg-rh-surface p-6 flex-1">
-            <h2 className="mb-4 text-lg font-bold">News</h2>
-            <p className="text-rh-muted text-sm">News coming soon</p>
+            <h2 className="mb-4 text-lg font-bold">Macro Indicators</h2>
+            <p className="text-rh-muted text-sm">Indicators coming soon</p>
           </section>
         </div>
 
-        {/* Right column: macroeconomic indicators */}
+        {/* Right column: news */}
         <section className="rounded-xl border border-rh-border bg-rh-surface p-6">
-          <h2 className="mb-4 text-lg font-bold">Macro Indicators</h2>
-          <p className="text-rh-muted text-sm">Indicators coming soon</p>
+          <h2 className="mb-4 text-lg font-bold">News</h2>
+          <p className="text-rh-muted text-sm">News coming soon</p>
         </section>
       </main>
     </div>

@@ -1,0 +1,221 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.2">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    span.Apple-tab-span {white-space:pre}
+  </style>
+</head>
+<body>
+<p class="p1">CREATE SCHEMA "public";</p>
+<p class="p1">CREATE SCHEMA "pgrst";</p>
+<p class="p1">CREATE SCHEMA "neon_auth";</p>
+<p class="p1">CREATE SCHEMA "auth";</p>
+<p class="p1">CREATE TABLE "correlations" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "correlations_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"industry_id" bigint NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"indicator_id" bigint NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"correlation" double precision NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"window_days" integer NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"n_observations" integer NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"computed_at" timestamp with time zone DEFAULT now() NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>CONSTRAINT "correlations_industry_id_indicator_id_key" UNIQUE("industry_id","indicator_id"),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>CONSTRAINT "correlations_correlation_check" CHECK (((correlation &gt;= ('-1'::integer)::double precision) AND (correlation &lt;= (1)::double precision)))</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "index_observations" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "index_observations_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"industry_id" bigint NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"observation_date" date NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"value" numeric(20, 6) NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"created_at" timestamp with time zone DEFAULT now() NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>CONSTRAINT "index_observations_industry_id_observation_date_key" UNIQUE("industry_id","observation_date")</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "indicator_observations" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "indicator_observations_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"indicator_id" bigint NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"observation_date" date NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"value" numeric(20, 6) NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"created_at" timestamp with time zone DEFAULT now() NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>CONSTRAINT "indicator_observations_indicator_id_observation_date_key" UNIQUE("indicator_id","observation_date")</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "indicators" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "indicators_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"code" text NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"name" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"source" text NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"unit" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"frequency" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"transform" text DEFAULT 'yoy_pct' NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"norm_lookback_days" integer DEFAULT 1825 NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"is_active" boolean DEFAULT true NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"created_at" timestamp with time zone DEFAULT now() NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>CONSTRAINT "indicators_source_code_key" UNIQUE("source","code"),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>CONSTRAINT "indicators_frequency_check" CHECK ((frequency = ANY (ARRAY['daily'::text, 'weekly'::text, 'monthly'::text, 'quarterly'::text]))),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>CONSTRAINT "indicators_transform_check" CHECK ((transform = ANY (ARRAY['level'::text, 'mom_change'::text, 'yoy_change'::text, 'mom_pct'::text, 'yoy_pct'::text])))</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "industries" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "industries_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"code" text NOT NULL CONSTRAINT "industries_code_key" UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"name" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"index_proxy" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"parent_id" bigint,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"created_at" timestamp with time zone DEFAULT now() NOT NULL</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "securities" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "securities_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"ticker" text NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"name" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"exchange" text NOT NULL UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"currency" char(3) DEFAULT 'USD' NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"industry_id" bigint NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"is_active" boolean DEFAULT true NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"created_at" timestamp with time zone DEFAULT now() NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>CONSTRAINT "securities_ticker_exchange_key" UNIQUE("ticker","exchange")</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."account" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"accountId" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"providerId" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"userId" uuid NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"accessToken" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"refreshToken" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"idToken" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"accessTokenExpiresAt" timestamp with time zone,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"refreshTokenExpiresAt" timestamp with time zone,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"scope" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"password" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"updatedAt" timestamp with time zone NOT NULL</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."invitation" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"organizationId" uuid NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"email" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"role" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"status" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"expiresAt" timestamp with time zone NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"inviterId" uuid NOT NULL</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."jwks" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"publicKey" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"privateKey" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"createdAt" timestamp with time zone NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"expiresAt" timestamp with time zone</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."member" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"organizationId" uuid NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"userId" uuid NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"role" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"createdAt" timestamp with time zone NOT NULL</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."organization" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"name" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"slug" text NOT NULL CONSTRAINT "organization_slug_key" UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"logo" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"createdAt" timestamp with time zone NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"metadata" text</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."project_config" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"name" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"endpoint_id" text NOT NULL CONSTRAINT "project_config_endpoint_id_key" UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"trusted_origins" jsonb NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"social_providers" jsonb NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"email_provider" jsonb,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"email_and_password" jsonb,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"allow_localhost" boolean NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"plugin_configs" jsonb,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"webhook_config" jsonb</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."session" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"expiresAt" timestamp with time zone NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"token" text NOT NULL CONSTRAINT "session_token_key" UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"updatedAt" timestamp with time zone NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"ipAddress" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"userAgent" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"userId" uuid NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"impersonatedBy" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"activeOrganizationId" text</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."user" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"name" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"email" text NOT NULL CONSTRAINT "user_email_key" UNIQUE,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"emailVerified" boolean NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"image" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"updatedAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"role" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"banned" boolean,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"banReason" text,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"banExpires" timestamp with time zone</p>
+<p class="p1">);</p>
+<p class="p1">CREATE TABLE "neon_auth"."verification" (</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"identifier" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"value" text NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"expiresAt" timestamp with time zone NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,</p>
+<p class="p1"><span class="Apple-tab-span">	</span>"updatedAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL</p>
+<p class="p1">);</p>
+<p class="p1">CREATE UNIQUE INDEX "correlations_industry_id_indicator_id_key" ON "correlations" ("industry_id","indicator_id");</p>
+<p class="p1">CREATE UNIQUE INDEX "correlations_pkey" ON "correlations" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "index_observations_industry_id_observation_date_key" ON "index_observations" ("industry_id","observation_date");</p>
+<p class="p1">CREATE UNIQUE INDEX "index_observations_pkey" ON "index_observations" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "indicator_observations_indicator_id_observation_date_key" ON "indicator_observations" ("indicator_id","observation_date");</p>
+<p class="p1">CREATE UNIQUE INDEX "indicator_observations_pkey" ON "indicator_observations" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "indicators_pkey" ON "indicators" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "indicators_source_code_key" ON "indicators" ("source","code");</p>
+<p class="p1">CREATE UNIQUE INDEX "industries_code_key" ON "industries" ("code");</p>
+<p class="p1">CREATE UNIQUE INDEX "industries_pkey" ON "industries" ("id");</p>
+<p class="p1">CREATE INDEX "idx_securities_industry" ON "securities" ("industry_id");</p>
+<p class="p1">CREATE UNIQUE INDEX "securities_pkey" ON "securities" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "securities_ticker_exchange_key" ON "securities" ("ticker","exchange");</p>
+<p class="p1">CREATE UNIQUE INDEX "account_pkey" ON "neon_auth"."account" ("id");</p>
+<p class="p1">CREATE INDEX "account_userId_idx" ON "neon_auth"."account" ("userId");</p>
+<p class="p1">CREATE INDEX "invitation_email_idx" ON "neon_auth"."invitation" ("email");</p>
+<p class="p1">CREATE INDEX "invitation_organizationId_idx" ON "neon_auth"."invitation" ("organizationId");</p>
+<p class="p1">CREATE UNIQUE INDEX "invitation_pkey" ON "neon_auth"."invitation" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "jwks_pkey" ON "neon_auth"."jwks" ("id");</p>
+<p class="p1">CREATE INDEX "member_organizationId_idx" ON "neon_auth"."member" ("organizationId");</p>
+<p class="p1">CREATE UNIQUE INDEX "member_pkey" ON "neon_auth"."member" ("id");</p>
+<p class="p1">CREATE INDEX "member_userId_idx" ON "neon_auth"."member" ("userId");</p>
+<p class="p1">CREATE UNIQUE INDEX "organization_pkey" ON "neon_auth"."organization" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "organization_slug_key" ON "neon_auth"."organization" ("slug");</p>
+<p class="p1">CREATE UNIQUE INDEX "organization_slug_uidx" ON "neon_auth"."organization" ("slug");</p>
+<p class="p1">CREATE UNIQUE INDEX "project_config_endpoint_id_key" ON "neon_auth"."project_config" ("endpoint_id");</p>
+<p class="p1">CREATE UNIQUE INDEX "project_config_pkey" ON "neon_auth"."project_config" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "session_pkey" ON "neon_auth"."session" ("id");</p>
+<p class="p1">CREATE UNIQUE INDEX "session_token_key" ON "neon_auth"."session" ("token");</p>
+<p class="p1">CREATE INDEX "session_userId_idx" ON "neon_auth"."session" ("userId");</p>
+<p class="p1">CREATE UNIQUE INDEX "user_email_key" ON "neon_auth"."user" ("email");</p>
+<p class="p1">CREATE UNIQUE INDEX "user_pkey" ON "neon_auth"."user" ("id");</p>
+<p class="p1">CREATE INDEX "verification_identifier_idx" ON "neon_auth"."verification" ("identifier");</p>
+<p class="p1">CREATE UNIQUE INDEX "verification_pkey" ON "neon_auth"."verification" ("id");</p>
+<p class="p1">ALTER TABLE "correlations" ADD CONSTRAINT "correlations_indicator_id_fkey" FOREIGN KEY ("indicator_id") REFERENCES "indicators"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "correlations" ADD CONSTRAINT "correlations_industry_id_fkey" FOREIGN KEY ("industry_id") REFERENCES "industries"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "index_observations" ADD CONSTRAINT "index_observations_industry_id_fkey" FOREIGN KEY ("industry_id") REFERENCES "industries"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "indicator_observations" ADD CONSTRAINT "indicator_observations_indicator_id_fkey" FOREIGN KEY ("indicator_id") REFERENCES "indicators"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "industries" ADD CONSTRAINT "industries_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "industries"("id");</p>
+<p class="p1">ALTER TABLE "securities" ADD CONSTRAINT "securities_industry_id_fkey" FOREIGN KEY ("industry_id") REFERENCES "industries"("id");</p>
+<p class="p1">ALTER TABLE "neon_auth"."account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "neon_auth"."invitation" ADD CONSTRAINT "invitation_inviterId_fkey" FOREIGN KEY ("inviterId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "neon_auth"."invitation" ADD CONSTRAINT "invitation_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "neon_auth"."organization"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "neon_auth"."member" ADD CONSTRAINT "member_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "neon_auth"."organization"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "neon_auth"."member" ADD CONSTRAINT "member_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;</p>
+<p class="p1">ALTER TABLE "neon_auth"."session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;</p>
+</body>
+</html>
