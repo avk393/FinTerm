@@ -7,6 +7,7 @@ import TimeRangeSelector from "@/components/TimeRangeSelector";
 import { useStockBars } from "@/hooks/useStockBars";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import type { TimeRange } from "@/types/portfolio";
+import MacroIndicators from "@/components/MacroIndicators";
 
 const GREEN = "#00c805";
 const RED = "#ff5000";
@@ -71,7 +72,7 @@ export default function StockDetail({ symbol }: Props) {
           {/* Macro Indicators */}
           <section className="rounded-xl border border-rh-border bg-rh-surface p-6 flex-1">
             <h2 className="mb-4 text-lg font-bold">Macro Indicators</h2>
-            <p className="text-rh-muted text-sm">Indicators coming soon</p>
+            <MacroIndicators symbol={symbol} />
           </section>
         </div>
 
