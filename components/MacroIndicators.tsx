@@ -5,6 +5,7 @@ import { useMacroIndicators } from "@/hooks/useMacroIndicators";
 export type MacroSignal = "strong-bearish" | "bearish" | "neutral" | "bullish" | "strong-bullish";
 
 export interface MacroIndicator {
+  id: number;
   name: string;
   signal: MacroSignal;
   correlation: number;
@@ -47,11 +48,19 @@ const SIGNAL_CONFIG: Record<
   },
 };
 
+const OVERLAY_COLOR = "#818cf8";
+
 interface Props {
   symbol: string;
+  selectedIndicatorId?: number | null;
+  onSelectIndicator?: (id: number, name: string) => void;
 }
 
-export default function MacroIndicators({ symbol }: Props) {
+export default function MacroIndicators({
+  symbol,
+  selectedIndicatorId,
+  onSelectIndicator,
+}: Props) {
   const { indicators, loading, error } = useMacroIndicators(symbol);
 
   if (loading) {
@@ -77,15 +86,37 @@ export default function MacroIndicators({ symbol }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
+      {onSelectIndicator && (
+        <p className="text-xs text-rh-muted mb-1">Click an indicator to overlay it on the chart</p>
+      )}
       {indicators.map((indicator) => {
         const cfg = SIGNAL_CONFIG[indicator.signal];
+        const isSelected = selectedIndicatorId === indicator.id;
+
         return (
           <div
             key={indicator.name}
+            onClick={() => onSelectIndicator?.(indicator.id, indicator.name)}
             className="flex items-center justify-between rounded-lg px-4 py-3 transition-colors"
-            style={{ background: "rgba(255,255,255,0.03)" }}
+            style={{
+              background: isSelected
+                ? "rgba(129,140,248,0.12)"
+                : "rgba(255,255,255,0.03)",
+              border: isSelected
+                ? `1px solid ${OVERLAY_COLOR}`
+                : "1px solid transparent",
+              cursor: onSelectIndicator ? "pointer" : "default",
+            }}
           >
-            <span className="text-sm font-medium text-rh-text">{indicator.name}</span>
+            <div className="flex items-center gap-2">
+              {isSelected && (
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ background: OVERLAY_COLOR }}
+                />
+              )}
+              <span className="text-sm font-medium text-rh-text">{indicator.name}</span>
+            </div>
 
             <div className="flex items-center gap-3">
               <span className="text-xs text-rh-muted tabular-nums">

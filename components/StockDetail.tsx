@@ -5,9 +5,11 @@ import Link from "next/link";
 import PortfolioChart from "@/components/PortfolioChart";
 import TimeRangeSelector from "@/components/TimeRangeSelector";
 import { useStockBars } from "@/hooks/useStockBars";
+import { useIndicatorObservations } from "@/hooks/useIndicatorObservations";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import type { TimeRange } from "@/types/portfolio";
 import MacroIndicators from "@/components/MacroIndicators";
+import StockNews from "@/components/StockNews";
 
 const GREEN = "#00c805";
 const RED = "#ff5000";
@@ -19,7 +21,11 @@ interface Props {
 export default function StockDetail({ symbol }: Props) {
   const [range, setRange] = useState<TimeRange>("1D");
   const [scrub, setScrub] = useState<number | null>(null);
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<number | null>(null);
+  const [selectedIndicatorName, setSelectedIndicatorName] = useState<string | null>(null);
+
   const { history, loading } = useStockBars(symbol, range);
+  const { points: overlayPoints } = useIndicatorObservations(selectedIndicatorId, range);
 
   const stats = useMemo(() => {
     if (!history || history.points.length === 0)
@@ -32,6 +38,16 @@ export default function StockDetail({ symbol }: Props) {
   }, [history, scrub]);
 
   const color = stats.isUp ? GREEN : RED;
+
+  function handleSelectIndicator(id: number, name: string) {
+    if (selectedIndicatorId === id) {
+      setSelectedIndicatorId(null);
+      setSelectedIndicatorName(null);
+    } else {
+      setSelectedIndicatorId(id);
+      setSelectedIndicatorName(name);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-rh-bg">
@@ -54,7 +70,7 @@ export default function StockDetail({ symbol }: Props) {
       </header>
 
       <main className="mx-auto grid max-w-[1400px] grid-cols-1 gap-6 px-8 py-8 lg:grid-cols-[1fr_360px]">
-        {/* Left column: chart + news */}
+        {/* Left column: chart + indicators */}
         <div className="flex flex-col gap-6">
           {/* Chart */}
           <section>
@@ -62,7 +78,14 @@ export default function StockDetail({ symbol }: Props) {
               <div className="h-[300px] animate-pulse rounded-xl bg-rh-surface" />
             )}
             {history && (
-              <PortfolioChart history={history} onScrub={setScrub} up={stats.isUp} height={300} />
+              <PortfolioChart
+                history={history}
+                onScrub={setScrub}
+                up={stats.isUp}
+                height={300}
+                overlayPoints={overlayPoints}
+                overlayLabel={selectedIndicatorName ?? undefined}
+              />
             )}
             <div className="mt-4">
               <TimeRangeSelector value={range} onChange={setRange} isUp={stats.isUp} />
@@ -72,14 +95,18 @@ export default function StockDetail({ symbol }: Props) {
           {/* Macro Indicators */}
           <section className="rounded-xl border border-rh-border bg-rh-surface p-6 flex-1">
             <h2 className="mb-4 text-lg font-bold">Macro Indicators</h2>
-            <MacroIndicators symbol={symbol} />
+            <MacroIndicators
+              symbol={symbol}
+              selectedIndicatorId={selectedIndicatorId}
+              onSelectIndicator={handleSelectIndicator}
+            />
           </section>
         </div>
 
         {/* Right column: news */}
         <section className="rounded-xl border border-rh-border bg-rh-surface p-6">
           <h2 className="mb-4 text-lg font-bold">News</h2>
-          <p className="text-rh-muted text-sm">News coming soon</p>
+          <StockNews symbol={symbol} />
         </section>
       </main>
     </div>

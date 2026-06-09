@@ -66,6 +66,7 @@ export async function GET(
 
     const rows = await sql`
       SELECT
+        i.id AS indicator_id,
         i.name,
         c.correlation,
         d.direction,
@@ -81,6 +82,7 @@ export async function GET(
     `;
 
     const indicators = rows.map((row) => ({
+      id: Number(row.indicator_id),
       name: row.name as string,
       signal: scoreToSignal(Number(row.strength)),
       correlation: Number(row.correlation),

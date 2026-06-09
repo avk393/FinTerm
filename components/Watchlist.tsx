@@ -2,6 +2,12 @@
 
 import type { NewsArticle } from "@/types/portfolio";
 
+function firstFourSentences(text: string): string {
+  const matches = text.match(/[^.!?]*[.!?]+/g);
+  if (!matches) return text;
+  return matches.slice(0, 4).join(" ").trim();
+}
+
 interface Props {
   news: NewsArticle[] | null;
   loading?: boolean;
@@ -50,7 +56,7 @@ export default function Watchlist({ news, loading }: Props) {
               <span className="text-[11px] text-rh-muted">{article.source}</span>
             </div>
             <p className="text-sm font-semibold leading-snug">{article.title}</p>
-            <p className="mt-1 text-xs leading-relaxed text-rh-muted">{article.summary}</p>
+            <p className="mt-1 text-xs leading-relaxed text-rh-muted">{firstFourSentences(article.summary)}</p>
           </a>
         ))}
       </div>

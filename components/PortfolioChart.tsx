@@ -2,17 +2,20 @@
 
 import { useMemo, useRef, useState, useCallback } from "react";
 import type { PortfolioHistory, TimeRange } from "@/types/portfolio";
+import type { ObsPoint } from "@/hooks/useIndicatorObservations";
 
 interface PortfolioChartProps {
   history: PortfolioHistory;
-  /** Reports the hovered point index (or null when not scrubbing). */
   onScrub: (index: number | null) => void;
   up?: boolean;
   height?: number;
+  overlayPoints?: ObsPoint[] | null;
+  overlayLabel?: string;
 }
 
 const GREEN = "#00c805";
 const RED = "#ff5000";
+const OVERLAY_COLOR = "#818cf8";
 const LABEL_COUNT = 5;
 
 function formatTimeLabel(t: number, range: TimeRange): string {
@@ -32,11 +35,20 @@ function formatTimeLabel(t: number, range: TimeRange): string {
   }
 }
 
+function formatOverlayValue(v: number): string {
+  if (Math.abs(v) >= 1_000_000) return (v / 1_000_000).toFixed(1) + "M";
+  if (Math.abs(v) >= 1_000) return (v / 1_000).toFixed(1) + "K";
+  if (Math.abs(v) < 10) return v.toFixed(2);
+  return v.toFixed(1);
+}
+
 export default function PortfolioChart({
   history,
   onScrub,
   up,
   height = 260,
+  overlayPoints,
+  overlayLabel,
 }: PortfolioChartProps) {
   const ref = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -64,7 +76,42 @@ export default function PortfolioChart({
     };
   }, [history, H, up]);
 
-  // Evenly-spaced label indices as percentages of the viewBox width.
+  // Overlay geometry — mapped to the stock chart's time window
+  const overlayGeo = useMemo(() => {
+    if (!overlayPoints || overlayPoints.length < 2 || points.length < 2) return null;
+
+    const tMin = points[0].t;
+    const tMax = points[points.length - 1].t;
+    if (tMax <= tMin) return null;
+
+    const vals = overlayPoints.map((p) => p.v);
+    const oMin = Math.min(...vals);
+    const oMax = Math.max(...vals);
+    const oRange = oMax - oMin || 1;
+
+    const gox = (t: number) => ((t - tMin) / (tMax - tMin)) * W;
+    const goy = (v: number) => H - padY - ((v - oMin) / oRange) * (H - padY * 2);
+
+    const visiblePoints = overlayPoints.filter(
+      (p) => p.t >= tMin && p.t <= tMax
+    );
+
+    if (visiblePoints.length < 2) return null;
+
+    const path = visiblePoints
+      .map((p, i) => `${i === 0 ? "M" : "L"}${gox(p.t).toFixed(1)},${goy(p.v).toFixed(1)}`)
+      .join(" ");
+
+    // 3 evenly-spaced Y-axis labels for the secondary axis
+    const axisLabels = [0, 0.5, 1].map((frac) => {
+      const v = oMin + frac * oRange;
+      const y = goy(v);
+      return { v, y };
+    });
+
+    return { path, axisLabels, oMin, oMax };
+  }, [overlayPoints, points, H, padY, W]);
+
   const labels = useMemo(() => {
     if (points.length < 2) return [];
     return Array.from({ length: LABEL_COUNT }, (_, i) => {
@@ -113,72 +160,143 @@ export default function PortfolioChart({
 
   return (
     <div>
-      <svg
-        ref={ref}
-        viewBox={`0 0 ${W} ${H}`}
-        width="100%"
-        height={H}
-        preserveAspectRatio="none"
-        className="touch-none select-none"
-        onMouseMove={(e) => handleMove(e.clientX)}
-        onMouseLeave={clear}
-        onTouchStart={(e) => handleMove(e.touches[0].clientX)}
-        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
-        onTouchEnd={clear}
-      >
-        {/* Dashed baseline */}
-        <line
-          x1={0}
-          x2={W}
-          y1={baseY}
-          y2={baseY}
-          stroke="#3a3a3a"
-          strokeWidth={1}
-          strokeDasharray="2 4"
-        />
+      {overlayLabel && (
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="inline-block w-3 h-0.5 rounded"
+            style={{ background: OVERLAY_COLOR }}
+          />
+          <span className="text-xs" style={{ color: OVERLAY_COLOR }}>
+            {overlayLabel}
+            {!overlayGeo && overlayPoints !== null && (
+              <span className="text-rh-muted ml-1">(no data for this period)</span>
+            )}
+          </span>
+        </div>
+      )}
 
-        {/* Full line dims to grey when scrubbing... */}
-        <path
-          d={linePath}
-          fill="none"
-          stroke={hover != null ? "#4a4a4a" : color}
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-        />
-        {/* ...segment up to cursor stays colored */}
-        {hover != null && (
+      <div className="relative">
+        <svg
+          ref={ref}
+          viewBox={`0 0 ${W} ${H}`}
+          width="100%"
+          height={H}
+          preserveAspectRatio="none"
+          className="touch-none select-none"
+          onMouseMove={(e) => handleMove(e.clientX)}
+          onMouseLeave={clear}
+          onTouchStart={(e) => handleMove(e.touches[0].clientX)}
+          onTouchMove={(e) => handleMove(e.touches[0].clientX)}
+          onTouchEnd={clear}
+        >
+          {/* Dashed baseline */}
+          <line
+            x1={0}
+            x2={W}
+            y1={baseY}
+            y2={baseY}
+            stroke="#3a3a3a"
+            strokeWidth={1}
+            strokeDasharray="2 4"
+          />
+
+          {/* Full stock line dims to grey when scrubbing */}
           <path
-            d={headPath}
+            d={linePath}
             fill="none"
-            stroke={color}
+            stroke={hover != null ? "#4a4a4a" : color}
             strokeWidth={2}
             strokeLinejoin="round"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
-        )}
-
-        {/* Crosshair + dot */}
-        {hover != null && (
-          <>
-            <line
-              x1={cursorX}
-              x2={cursorX}
-              y1={0}
-              y2={H}
-              stroke="#5a5a5a"
-              strokeWidth={1}
+          {/* Segment up to cursor stays colored */}
+          {hover != null && (
+            <path
+              d={headPath}
+              fill="none"
+              stroke={color}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
               vectorEffect="non-scaling-stroke"
             />
-            <circle cx={cursorX} cy={cursorY} r={5} fill={color} vectorEffect="non-scaling-stroke" />
-            <circle cx={cursorX} cy={cursorY} r={5} fill="none" stroke="#000" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-          </>
-        )}
-      </svg>
+          )}
 
-      {/* Time labels rendered as HTML to avoid SVG text distortion */}
+          {/* Overlay indicator line */}
+          {overlayGeo && (
+            <>
+              <path
+                d={overlayGeo.path}
+                fill="none"
+                stroke={OVERLAY_COLOR}
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                strokeDasharray="6 3"
+                vectorEffect="non-scaling-stroke"
+                opacity={0.85}
+              />
+              {/* Right-side Y-axis ticks */}
+              {overlayGeo.axisLabels.map(({ y }, i) => (
+                <line
+                  key={i}
+                  x1={W - 8}
+                  x2={W}
+                  y1={y}
+                  y2={y}
+                  stroke={OVERLAY_COLOR}
+                  strokeWidth={1}
+                  opacity={0.5}
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </>
+          )}
+
+          {/* Crosshair + dot */}
+          {hover != null && (
+            <>
+              <line
+                x1={cursorX}
+                x2={cursorX}
+                y1={0}
+                y2={H}
+                stroke="#5a5a5a"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle cx={cursorX} cy={cursorY} r={5} fill={color} vectorEffect="non-scaling-stroke" />
+              <circle cx={cursorX} cy={cursorY} r={5} fill="none" stroke="#000" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+            </>
+          )}
+        </svg>
+
+        {/* Secondary Y-axis labels (HTML positioned over chart) */}
+        {overlayGeo && (
+          <div className="pointer-events-none absolute inset-0">
+            {overlayGeo.axisLabels.map(({ v, y }, i) => {
+              const pct = (y / H) * 100;
+              return (
+                <span
+                  key={i}
+                  className="absolute right-0 text-[10px] tabular-nums pr-1"
+                  style={{
+                    top: `${pct}%`,
+                    transform: "translateY(-50%)",
+                    color: OVERLAY_COLOR,
+                    opacity: 0.75,
+                  }}
+                >
+                  {formatOverlayValue(v)}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Time labels */}
       <div className="relative h-5 mt-1 select-none">
         {labels.map(({ idx, pct, text }, i) => (
           <span
