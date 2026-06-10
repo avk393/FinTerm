@@ -10,6 +10,45 @@ import { formatCurrency, formatPercent } from "@/lib/format";
 import type { TimeRange } from "@/types/portfolio";
 import MacroIndicators from "@/components/MacroIndicators";
 import StockNews from "@/components/StockNews";
+import KnowledgeBaseSignals from "@/components/KnowledgeBaseSignals";
+
+type NewsTab = "news" | "signals";
+
+function NewsTabs({ symbol }: { symbol: string }) {
+  const [activeTab, setActiveTab] = useState<NewsTab>("news");
+
+  return (
+    <>
+      <div className="mb-4 flex gap-4 border-b border-rh-border">
+        <button
+          onClick={() => setActiveTab("news")}
+          className={`pb-2 text-sm font-semibold transition-colors ${
+            activeTab === "news"
+              ? "border-b-2 border-rh-text text-rh-text"
+              : "text-rh-muted hover:text-rh-text"
+          }`}
+        >
+          Stock News
+        </button>
+        <button
+          onClick={() => setActiveTab("signals")}
+          className={`pb-2 text-sm font-semibold transition-colors ${
+            activeTab === "signals"
+              ? "border-b-2 border-rh-text text-rh-text"
+              : "text-rh-muted hover:text-rh-text"
+          }`}
+        >
+          Knowledge Base Signals
+        </button>
+      </div>
+      {activeTab === "news" ? (
+        <StockNews symbol={symbol} />
+      ) : (
+        <KnowledgeBaseSignals ticker={symbol} />
+      )}
+    </>
+  );
+}
 
 const GREEN = "#00c805";
 const RED = "#ff5000";
@@ -105,8 +144,7 @@ export default function StockDetail({ symbol }: Props) {
 
         {/* Right column: news */}
         <section className="rounded-xl border border-rh-border bg-rh-surface p-6">
-          <h2 className="mb-4 text-lg font-bold">News</h2>
-          <StockNews symbol={symbol} />
+          <NewsTabs symbol={symbol} />
         </section>
       </main>
     </div>

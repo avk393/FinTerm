@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import Header from "@/components/Header";
 import PortfolioSummary from "@/components/PortfolioSummary";
 import PortfolioChart from "@/components/PortfolioChart";
@@ -98,8 +99,18 @@ export default function Page() {
           )}
         </div>
 
-        {/* Right: news */}
-        <Watchlist news={news} loading={loadingNews} />
+        {/* Right: nav + news */}
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg bg-rh-elevated p-4">
+            <Link
+              href="/lessons"
+              className="block w-full rounded-lg bg-rh-border px-4 py-3 text-center text-sm font-medium text-rh-text hover:bg-rh-elevated transition-colors border border-rh-border"
+            >
+              Technical Lessons
+            </Link>
+          </div>
+          <Watchlist news={news} loading={loadingNews} />
+        </div>
       </main>
     </div>
   );
