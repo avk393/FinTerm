@@ -66,8 +66,12 @@ export default function StockNews({ symbol }: Props) {
         >
           <div className="mb-1 flex items-center gap-2">
             <span className="text-[11px] text-rh-muted">{article.source}</span>
-            <span className="text-[11px] text-rh-muted">·</span>
-            <span className="text-[11px] text-rh-muted">{timeAgo(article.publishedAt)}</span>
+            {article.publishedAt && (
+              <>
+                <span className="text-[11px] text-rh-muted">·</span>
+                <span className="text-[11px] text-rh-muted">{timeAgo(article.publishedAt)}</span>
+              </>
+            )}
           </div>
           <p className="text-sm font-semibold leading-snug">{article.title}</p>
           {article.summary && (

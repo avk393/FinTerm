@@ -205,20 +205,17 @@ export async function writeCachedAnalysis(
 
 const SYSTEM_PROMPT =
   'You are an investment analyst reasoning about whether a stock aligns with the user\'s investment theses.\n' +
-  'Use ONLY the provided beliefs, fundamentals, and evidence chunks — do not invent or infer data beyond what is given.\n' +
+  'Use your own knowledge of the company identified by its ticker — its business, financials, competitive position, and recent developments — to judge each belief.\n' +
   'Return ONLY valid JSON matching this exact shape, with no markdown, preamble, or explanation:\n' +
-  '{"signals":[{"belief":"string","alignment":"aligns|conflicts|neutral","confidence":0.0,"reasoning":"1-2 sentences citing which evidence chunk or fundamental drove the decision"}],"summary":"2-3 sentence overall take on whether this stock fits the investment thesis"}'
+  '{"signals":[{"belief":"string","alignment":"aligns|conflicts|neutral","confidence":0.0,"reasoning":"1-2 sentences citing specific facts about the company that drove the decision"}],"summary":"2-3 sentence overall take on whether this stock fits the investment thesis"}'
 
 function buildPrompt(
   ticker: string,
-  fundamentals: Record<string, number | boolean>,
   beliefs: MatchedBelief[],
-  chunks: RetrievedChunk[],
 ): string {
   const lines: string[] = []
 
   lines.push(`## Stock: ${ticker}`)
-  lines.push(`\n## Fundamentals\n${JSON.stringify(fundamentals, null, 2)}`)
 
   lines.push('\n## Investment Thesis Beliefs')
   for (const b of beliefs) {
@@ -228,25 +225,9 @@ function buildPrompt(
     }
   }
 
-  lines.push('\n## Evidence from Knowledge Base')
-  if (!chunks.length) {
-    lines.push(
-      'No supporting evidence chunks found in the knowledge base. ' +
-      'Base your analysis solely on the fundamentals and beliefs, and note the lack of supporting evidence in the summary.',
-    )
-  } else {
-    for (let i = 0; i < chunks.length; i++) {
-      const c = chunks[i]
-      lines.push(
-        `\n### Evidence ${i + 1} — ${c.sourceTitle} (${c.sourceType}, similarity: ${c.similarity.toFixed(3)})`,
-      )
-      lines.push(c.content)
-    }
-  }
-
   lines.push(
-    '\nFor each belief listed above, determine alignment (aligns/conflicts/neutral), ' +
-    'a confidence score between 0 and 1, and cite specific evidence chunks or fundamentals in the reasoning.',
+    `\nFor each belief listed above, determine alignment (aligns/conflicts/neutral) for ${ticker}, ` +
+    'a confidence score between 0 and 1, and cite specific facts about the company in the reasoning.',
   )
 
   return lines.join('\n')
@@ -286,7 +267,6 @@ function parseClaudeResponse(
 export async function generateAnalysis(
   ticker: string,
   fundamentals: Record<string, number | boolean>,
-  sector: string,
 ): Promise<AnalysisResult> {
   const beliefs = await matchSignals(ticker, fundamentals)
 
@@ -307,14 +287,7 @@ export async function generateAnalysis(
   const hit = await getCachedAnalysis(ticker, cacheKey)
   if (hit) return hit
 
-  let chunks: RetrievedChunk[] = []
-  try {
-    chunks = await retrieveChunks(ticker, sector, beliefs.map(b => b.belief).join(' '))
-  } catch {
-    // DB unavailable; continue without evidence chunks
-  }
-
-  const prompt = buildPrompt(ticker, fundamentals, beliefs, chunks)
+  const prompt = buildPrompt(ticker, beliefs)
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
   let raw = await callClaude(anthropic, prompt)

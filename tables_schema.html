@@ -2,6 +2,13 @@ CREATE SCHEMA "public";
 CREATE SCHEMA "pgrst";
 CREATE SCHEMA "neon_auth";
 CREATE SCHEMA "auth";
+CREATE TABLE "analysis_cache" (
+	"ticker" varchar(10),
+	"cache_key" text,
+	"response" jsonb NOT NULL,
+	"expires_at" timestamp with time zone NOT NULL,
+	CONSTRAINT "analysis_cache_pkey" PRIMARY KEY("ticker","cache_key")
+);
 CREATE TABLE "correlations" (
 	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "correlations_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
 	"industry_id" bigint NOT NULL UNIQUE,
@@ -62,6 +69,23 @@ CREATE TABLE "industries" (
 	"parent_id" bigint,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
+CREATE TABLE "knowledge_chunks" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"source_id" uuid NOT NULL,
+	"chunk_index" integer NOT NULL,
+	"content" text NOT NULL,
+	"embedding" vector(1536),
+	"metadata" jsonb DEFAULT '{}' NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE TABLE "knowledge_sources" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"title" text,
+	"source_type" text NOT NULL,
+	"url" text,
+	"ingested_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "knowledge_sources_source_type_check" CHECK ((source_type = ANY (ARRAY['pdf'::text, 'youtube'::text, 'thesis'::text, 'manual'::text])))
+);
 CREATE TABLE "securities" (
 	"id" bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY (sequence name "securities_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START WITH 1 CACHE 1),
 	"ticker" text NOT NULL UNIQUE,
@@ -72,6 +96,14 @@ CREATE TABLE "securities" (
 	"is_active" boolean DEFAULT true NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "securities_ticker_exchange_key" UNIQUE("ticker","exchange")
+);
+CREATE TABLE "thesis_beliefs" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+	"belief" text NOT NULL,
+	"category" text,
+	"signals" jsonb DEFAULT '[]' NOT NULL,
+	"active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 CREATE TABLE "neon_auth"."account" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -167,6 +199,8 @@ CREATE TABLE "neon_auth"."verification" (
 	"createdAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
 	"updatedAt" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+CREATE INDEX "analysis_cache_expires_at_idx" ON "analysis_cache" ("expires_at");
+CREATE UNIQUE INDEX "analysis_cache_pkey" ON "analysis_cache" ("ticker","cache_key");
 CREATE UNIQUE INDEX "correlations_industry_id_indicator_id_key" ON "correlations" ("industry_id","indicator_id");
 CREATE UNIQUE INDEX "correlations_pkey" ON "correlations" ("id");
 CREATE UNIQUE INDEX "index_observations_industry_id_observation_date_key" ON "index_observations" ("industry_id","observation_date");
@@ -179,9 +213,13 @@ CREATE UNIQUE INDEX "indicators_pkey" ON "indicators" ("id");
 CREATE UNIQUE INDEX "indicators_source_code_key" ON "indicators" ("source","code");
 CREATE UNIQUE INDEX "industries_code_key" ON "industries" ("code");
 CREATE UNIQUE INDEX "industries_pkey" ON "industries" ("id");
+CREATE INDEX "knowledge_chunks_embedding_idx" ON "knowledge_chunks" USING hnsw ("embedding");
+CREATE UNIQUE INDEX "knowledge_chunks_pkey" ON "knowledge_chunks" ("id");
+CREATE UNIQUE INDEX "knowledge_sources_pkey" ON "knowledge_sources" ("id");
 CREATE INDEX "idx_securities_industry" ON "securities" ("industry_id");
 CREATE UNIQUE INDEX "securities_pkey" ON "securities" ("id");
 CREATE UNIQUE INDEX "securities_ticker_exchange_key" ON "securities" ("ticker","exchange");
+CREATE UNIQUE INDEX "thesis_beliefs_pkey" ON "thesis_beliefs" ("id");
 CREATE UNIQUE INDEX "account_pkey" ON "neon_auth"."account" ("id");
 CREATE INDEX "account_userId_idx" ON "neon_auth"."account" ("userId");
 CREATE INDEX "invitation_email_idx" ON "neon_auth"."invitation" ("email");
@@ -209,6 +247,7 @@ ALTER TABLE "index_observations" ADD CONSTRAINT "index_observations_industry_id_
 ALTER TABLE "indicator_directions" ADD CONSTRAINT "indicator_directions_indicator_id_fkey" FOREIGN KEY ("indicator_id") REFERENCES "indicators"("id") ON DELETE CASCADE;
 ALTER TABLE "indicator_observations" ADD CONSTRAINT "indicator_observations_indicator_id_fkey" FOREIGN KEY ("indicator_id") REFERENCES "indicators"("id") ON DELETE CASCADE;
 ALTER TABLE "industries" ADD CONSTRAINT "industries_parent_id_fkey" FOREIGN KEY ("parent_id") REFERENCES "industries"("id");
+ALTER TABLE "knowledge_chunks" ADD CONSTRAINT "knowledge_chunks_source_id_fkey" FOREIGN KEY ("source_id") REFERENCES "knowledge_sources"("id") ON DELETE CASCADE;
 ALTER TABLE "securities" ADD CONSTRAINT "securities_industry_id_fkey" FOREIGN KEY ("industry_id") REFERENCES "industries"("id");
 ALTER TABLE "neon_auth"."account" ADD CONSTRAINT "account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;
 ALTER TABLE "neon_auth"."invitation" ADD CONSTRAINT "invitation_inviterId_fkey" FOREIGN KEY ("inviterId") REFERENCES "neon_auth"."user"("id") ON DELETE CASCADE;

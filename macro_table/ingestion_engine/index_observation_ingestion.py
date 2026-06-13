@@ -45,7 +45,7 @@ try:
 except Exception as e:
     print("Connection failed.")
     print(e)
-    """
+"""
 
 end_date = datetime.today()
 start_date = end_date - timedelta(days=365 * 10)

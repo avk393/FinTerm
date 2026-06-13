@@ -12,18 +12,26 @@ npm run dev        # runs entirely on mock data
 # open http://localhost:3000
 ```
 
-To connect real Alpaca data:
+## Overview
 
-```bash
-cp .env.local.example .env.local
-# fill in ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY
-# leave ALPACA_TRADING_BASE_URL as the paper endpoint while developing
-```
+
+
+## Setup
+To connect app to backend data sources, export the following variables to your environment:
+ALPACA_ENDPOINT
+ALPACA_DATA_BASE_URL
+ALPACA_PAPER_KEY
+ALPACA_SECRET_KEY
+ANTHROPIC_API_KEY
+NEON_DATABASE_URL
+FRED_API_KEY
+
+Use the tables_schema.html to setup your own DB, and run the following python files to populate your tables:
+
 
 Set `USE_MOCK_DATA=true` to force mock data even when keys are present.
 
 ## How it's wired
-
 ```
 Browser (client components)
   └─ hooks/usePortfolio.ts        fetches from /api/* on the same origin
@@ -50,39 +58,20 @@ The UI time ranges (`1D`/`1W`/`1M`/`3M`/`YTD`/`1Y`/`ALL`) map to Alpaca's
 
 ## Project layout
 
-```
-app/
-  layout.tsx            root layout, fonts, dark theme
-  page.tsx              dashboard composition + derived summary stats
-  globals.css           Tailwind + scrollbar / tabular-num helpers
-  api/                  account · positions · portfolio-history · watchlist
-components/
-  Header.tsx            top nav + search
-  PortfolioSummary.tsx  big value + change (updates while scrubbing)
-  PortfolioChart.tsx    SVG equity chart with pointer scrubbing + baseline
-  TimeRangeSelector.tsx 1D/1W/.../ALL tabs
-  Sparkline.tsx         tiny per-row watchlist chart
-  Watchlist.tsx         right-hand list column
-  PositionsList.tsx     holdings list
-hooks/usePortfolio.ts   data fetching
-lib/                    alpaca client · mock data · formatters
-types/portfolio.ts      shared domain types
-```
-
 ## Notable details
 
-- **Scrubbing chart.** Hovering/touching the chart emits the nearest point
-  index up to the page, which recomputes the displayed value, change, and
-  timestamp — the same interaction Robinhood uses. The line past the cursor
-  dims while scrubbing.
-- **Single source of tone.** Whether the period is up or down is computed once
-  in `page.tsx` and passed to the chart and the range tabs, so the chart color,
-  the change number, and the active-tab color never disagree.
-- **Tabular figures** (`.tnum`) keep prices from shifting horizontally as values
-  change during a scrub.
 
 ## Customizing
 
 - **Colors / theme:** `tailwind.config.ts` under `colors.rh`.
 - **Default watchlist symbols:** `DEFAULT` array in `app/api/watchlist/route.ts`.
 - **Font:** swap the `DM_Sans` import in `app/layout.tsx`.
+
+## Features
+
+### Thesis Framework -> Knowledge Base Table
+### Macro Indicator Tables
+
+Future Features
+Volatility Analysis
+Be able to search for stocks matching thesis

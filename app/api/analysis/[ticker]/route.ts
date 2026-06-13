@@ -13,12 +13,11 @@ export async function GET(
     const symbol = ticker.toUpperCase()
 
     const fundamentals = await getFundamentals(symbol)
-    const { sector, ...fundamentalFields } = fundamentals
+    const { sector: _sector, ...fundamentalFields } = fundamentals
 
     const result = await generateAnalysis(
       symbol,
       fundamentalFields as Record<string, number | boolean>,
-      sector as string,
     )
 
     return NextResponse.json(result)
